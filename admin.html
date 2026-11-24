@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="快速報價">
+  <meta name="robots" content="noindex, nofollow">
+  <title>業務快速建單</title>
+  <style>
+    :root {
+      --bg: #f1f5f9;
+      --card: #ffffff;
+      --primary: #0f172a;
+      --accent: #2563eb;
+      --success: #16a34a;
+      --danger: #dc2626;
+      --border: #cbd5e1;
+      --text: #1e293b;
+      --muted: #64748b;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 16px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans TC", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      display: flex;
+      justify-content: center;
+    }
+    .container { width: 100%; max-width: 460px; }
+    .card {
+      background: var(--card);
+      border-radius: 16px;
+      padding: 20px;
+      box-shadow: 0 4px 20px rgba(15, 23, 42, 0.08);
+      margin-bottom: 16px;
+    }
+    h1 { margin: 0 0 4px; font-size: 20px; }
+    .subtitle { font-size: 13px; color: var(--muted); margin-bottom: 18px; }
+    .field { margin-bottom: 14px; }
+    label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 6px;
+      color: var(--text);
+    }
+    input, textarea, select {
+      width: 100%;
+      padding: 11px 12px;
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      font-size: 16px; /* 防止 iPhone 自動縮放 */
+      background: #fff;
+      color: var(--text);
+      outline: none;
+    }
+    input:focus, textarea:focus, select:focus { border-color: var(--accent); }
+    textarea { min-height: 84px; resize: vertical; font-family: inherit; }
+    .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .inline-group { display: flex; gap: 8px; }
+    .inline-group input { flex: 1; }
+    .mini-btn {
+      padding: 0 12px;
+      border: 1.5px solid var(--border);
+      background: #f8fafc;
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+      white-space: nowrap;
+      cursor: pointer;
+    }
+    .chip-group { display: flex; gap: 8px; flex-wrap: wrap; }
+    .chip {
+      flex: 1;
+      min-width: 68px;
+      padding: 9px 6px;
+      text-align: center;
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 600;
+      background: #fff;
+      cursor: pointer;
+    }
+    .chip.active {
+      background: var(--primary);
+      color: #fff;
+      border-color: var(--primary);
+    }
+    .submit-btn {
+      width: 100%;
+      padding: 14px;
+      border: none;
+      border-radius: 12px;
+      background: var(--accent);
+      color: #fff;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      margin-top: 6px;
+    }
+    .submit-btn:disabled { background: #94a3b8; }
+    .error-msg {
+      color: var(--danger);
+      font-size: 13px;
+      margin-top: 10px;
+      text-align: center;
+      min-height: 18px;
+    }
+    .result-box {
+      background: #f0fdf4;
+      border: 1.5px solid #86efac;
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 14px;
+    }
+    .result-title { font-size: 17px; font-weight: 700; color: #166534; margin: 0 0 8px; }
+    .url-text {
+      background: #fff;
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid #bbf7d0;
+      font-size: 13px;
+      word-break: break-all;
+      margin-bottom: 10px;
+    }
+    .copy-btn {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: 10px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      margin-bottom: 8px;
+    }
+    .copy-primary { background: var(--success); color: #fff; }
+    .copy-secondary { background: var(--primary); color: #fff; }
+    .copy-outline { background: #fff; color: var(--text); border: 1.5px solid var(--border); }
+    .hidden { display: none !important; }
+    .hint { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- 建單表單 -->
+    <div id="form-card" class="card">
+      <h1>🚗 業務快速建單</h1>
+      <div class="subtitle">填寫後自動寫入試算表並產生限時報價連結</div>
+
+      <div class="field">
+        <label>管理密碼（手機會自動記住）</label>
+        <input id="adminPin" type="password" inputmode="numeric" placeholder="輸入你在 GAS 設定的密碼">
+      </div>
+
+      <div class="field">
+        <label>客戶 Threads 帳號（浮水印用）</label>
+        <input id="threadsId" type="text" placeholder="例如 @car_buyer99">
+      </div>
+
+      <div class="field">
+        <label>車型與規格 *</label>
+        <input id="carModel" type="text" placeholder="例如 2026 Swift 1.2 藍">
+      </div>
+
+      <div class="row-2">
+        <div class="field">
+          <label>牌價（元）</label>
+          <input id="listPrice" type="number" inputmode="numeric" placeholder="例如 730000">
+        </div>
+        <div class="field">
+          <label>空車折價（元）</label>
+          <input id="discount" type="number" inputmode="numeric" placeholder="例如 35000">
+        </div>
+      </div>
+
+      <div class="field">
+        <label>最終成交價（元）</label>
+        <input id="finalPrice" type="number" inputmode="numeric" placeholder="會自動相減，也可手動修改">
+      </div>
+
+      <div class="field">
+        <label>配備與專案備註</label>
+        <textarea id="notes" placeholder="例如：含隔熱紙、行車記錄器、三寶、領牌費實報實銷"></textarea>
+      </div>
+
+      <div class="field">
+        <label>報價有效時間</label>
+        <div class="chip-group" id="hours-chips">
+          <div class="chip active" data-hours="24">24 小時</div>
+          <div class="chip" data-hours="48">48 小時</div>
+          <div class="chip" data-hours="72">3 天</div>
+          <div class="chip" data-hours="168">7 天</div>
+        </div>
+      </div>
+
+      <div class="row-2">
+        <div class="field">
+          <label>查看次數上限</label>
+          <input id="maxViews" type="number" inputmode="numeric" value="5" placeholder="0 為不限">
+          <div class="hint">填 0 代表不限次數</div>
+        </div>
+        <div class="field">
+          <label>4 碼解鎖碼（選填）</label>
+          <div class="inline-group">
+            <input id="unlockCode" type="tel" inputmode="numeric" maxlength="6" placeholder="留空免密碼">
+            <button type="button" class="mini-btn" id="gen-code-btn">隨機</button>
+          </div>
+        </div>
+      </div>
+
+      <button id="submit-btn" class="submit-btn" type="button">⚡ 產生專屬報價連結</button>
+      <div id="form-error" class="error-msg"></div>
+    </div>
+
+    <!-- 成功結果頁 -->
+    <div id="result-card" class="card hidden">
+      <div class="result-box">
+        <div class="result-title">✅ 報價單建立成功！</div>
+        <div class="url-text" id="res-url"></div>
+        <div id="res-meta" style="font-size: 13px; color: #166534;"></div>
+      </div>
+
+      <button id="copy-msg-btn" class="copy-btn copy-primary" type="button">📋 一鍵複製 Threads 報價訊息</button>
+      <button id="copy-url-btn" class="copy-btn copy-secondary" type="button">🔗 只複製報價連結</button>
+      <button id="copy-code-btn" class="copy-btn copy-outline hidden" type="button">🔑 單獨複製解鎖碼</button>
+      <button id="new-quote-btn" class="copy-btn copy-outline" type="button">➕ 再開下一張報價單</button>
+    </div>
+  </div>
+
+  <script>
+    // ================= 必填設定區 =================
+    const CONFIG = {
+      // 貼上你的 Google Apps Script 網頁應用程式網址（/exec 結尾）
+      API_URL: 'https://script.google.com/macros/s/AKfycbyzx4QwcV3YpBuXhAMeoPdwCdG7NGy9eSC0iwb2v-_PCo5Pa6KriXdkafjBj8QXyFOJ-g/exec'
+    };
+
+    // 讀取上次記住的管理密碼
+    const pinInput = document.getElementById('adminPin');
+    pinInput.value = localStorage.getItem('quote_admin_pin') || '';
+
+    // 牌價 - 折價 自動算出成交價
+    const listPriceEl = document.getElementById('listPrice');
+    const discountEl = document.getElementById('discount');
+    const finalPriceEl = document.getElementById('finalPrice');
+
+    function autoCalc() {
+      const lp = Number(listPriceEl.value);
+      const dc = Number(discountEl.value);
+      if (lp > 0 && discountEl.value !== '') {
+        finalPriceEl.value = lp - dc;
+      }
+    }
+    listPriceEl.addEventListener('input', autoCalc);
+    discountEl.addEventListener('input', autoCalc);
+
+    // 有效時間按鈕切換
+    let selectedHours = 24;
+    document.querySelectorAll('#hours-chips .chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        document.querySelectorAll('#hours-chips .chip').forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+        selectedHours = Number(chip.dataset.hours);
+      });
+    });
+
+    // 隨機產生 4 碼解鎖碼
+    document.getElementById('gen-code-btn').addEventListener('click', () => {
+      const code = String(Math.floor(1000 + Math.random() * 9000));
+      document.getElementById('unlockCode').value = code;
+    });
+
+    // 複製文字共用函式（相容 iPhone Safari）
+    async function copyText(text, btn, originalLabel) {
+      try {
+        await navigator.clipboard.writeText(text);
+      } catch {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+      }
+      btn.textContent = '✅ 已複製！';
+      setTimeout(() => { btn.textContent = originalLabel; }, 1500);
+    }
+
+    let lastResult = null;
+
+    // 送出建單
+    const submitBtn = document.getElementById('submit-btn');
+    const errorEl = document.getElementById('form-error');
+
+    submitBtn.addEventListener('click', async () => {
+      errorEl.textContent = '';
+      const adminPin = pinInput.value.trim();
+      const carModel = document.getElementById('carModel').value.trim();
+
+      if (!adminPin) { errorEl.textContent = '請輸入管理密碼'; return; }
+      if (!carModel) { errorEl.textContent = '請輸入車型與規格'; return; }
+
+      // 自動幫 Threads 帳號補上 @
+      let threadsId = document.getElementById('threadsId').value.trim();
+      if (threadsId && !threadsId.startsWith('@')) threadsId = '@' + threadsId;
+
+      localStorage.setItem('quote_admin_pin', adminPin);
+
+      const payload = {
+        adminPin,
+        threadsId,
+        carModel,
+        listPrice: listPriceEl.value.trim(),
+        discount: discountEl.value.trim(),
+        finalPrice: finalPriceEl.value.trim(),
+        notes: document.getElementById('notes').value.trim(),
+        validHours: selectedHours,
+        maxViews: document.getElementById('maxViews').value.trim() || 0,
+        unlockCode: document.getElementById('unlockCode').value.trim()
+      };
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = '寫入試算表中...';
+
+      try {
+        // 使用 text/plain 避開 GAS 的 CORS 預檢限制
+        const res = await fetch(CONFIG.API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify(payload)
+        });
+        const result = await res.json();
+
+        if (result.status === 'success') {
+          lastResult = result.data;
+          document.getElementById('res-url').textContent = lastResult.quoteUrl;
+          document.getElementById('res-meta').textContent =
+            `有效期限至：${lastResult.expireTime}` +
+            (lastResult.unlockCode ? ` ｜ 解鎖碼：${lastResult.unlockCode}` : ' ｜ 免密碼直接看');
+
+          document.getElementById('copy-code-btn').classList.toggle('hidden', !lastResult.unlockCode);
+          document.getElementById('form-card').classList.add('hidden');
+          document.getElementById('result-card').classList.remove('hidden');
+        } else {
+          errorEl.textContent = result.message || '建單失敗';
+        }
+      } catch (err) {
+        errorEl.textContent = '連線失敗，請確認 GAS 已「建立新版本」重新部署。';
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = '⚡ 產生專屬報價連結';
+      }
+    });
+
+    // 結果頁各複製按鈕
+    document.getElementById('copy-msg-btn').addEventListener('click', function () {
+      const msg = [
+        `您好！這是為您準備的專屬購車報價單：`,
+        lastResult.quoteUrl,
+        `（有效期限至 ${lastResult.expireTime}，點開後長按按鈕即可顯示專案底價）`
+      ].join('\n');
+      copyText(msg, this, '📋 一鍵複製 Threads 報價訊息');
+    });
+
+    document.getElementById('copy-url-btn').addEventListener('click', function () {
+      copyText(lastResult.quoteUrl, this, '🔗 只複製報價連結');
+    });
+
+    document.getElementById('copy-code-btn').addEventListener('click', function () {
+      copyText(`您的報價單解鎖碼是：${lastResult.unlockCode}`, this, '🔑 單獨複製解鎖碼');
+    });
+
+    // 重置再開下一張
+    document.getElementById('new-quote-btn').addEventListener('click', () => {
+      ['threadsId', 'carModel', 'listPrice', 'discount', 'finalPrice', 'notes', 'unlockCode']
+        .forEach(id => { document.getElementById(id).value = ''; });
+      document.getElementById('result-card').classList.add('hidden');
+      document.getElementById('form-card').classList.remove('hidden');
+    });
+  </script>
+</body>
+</html>
