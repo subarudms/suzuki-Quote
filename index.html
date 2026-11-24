@@ -403,7 +403,7 @@
           <!-- 配備與備註 -->
           <div id="notes-wrapper" class="hidden">
             <div class="label" style="font-weight: 600; color: var(--text);">配備明細與專案備註</div>
-            <div class="notes-box" id="q-notes"></div>
+            <div class="notes-box blurred" id="q-notes"></div>
           </div>
 
           <!-- 有效期限與防外流聲明 -->
@@ -577,7 +577,7 @@
 
     // 長按顯示底價防窺事件（相容 iOS / Android / Threads 內建瀏覽器）
     const holdBtn = document.getElementById('hold-btn');
-    const secretEls = document.querySelectorAll('.secret-value');
+    const secretEls = document.querySelectorAll('.secret-value, #q-notes');
     const revealStatus = document.getElementById('reveal-status');
 
     function revealSecrets(e) {
@@ -591,7 +591,7 @@
     function hideSecrets() {
       secretEls.forEach(el => el.classList.add('blurred'));
       holdBtn.classList.remove('holding');
-      holdBtn.textContent = '👆 按住不放顯示專屬底價';
+      holdBtn.textContent = '👆 按住不放顯示底價與配備';
       revealStatus.textContent = '已隱藏';
     }
 
