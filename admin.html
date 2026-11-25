@@ -52,7 +52,7 @@
       padding: 11px 12px;
       border: 1.5px solid var(--border);
       border-radius: 10px;
-      font-size: 16px; /* 防止 iPhone 自動縮放 */
+      font-size: 16px;
       background: #fff;
       color: var(--text);
       outline: none;
@@ -157,20 +157,39 @@
         <input id="adminPin" type="password" inputmode="numeric" placeholder="輸入你在 GAS 設定的密碼">
       </div>
 
+      <div class="row-2">
+        <div class="field">
+          <label>負責業務（自動記住）</label>
+          <input id="salesName" type="text" placeholder="例如 陳經理">
+        </div>
+        <div class="field">
+          <label>我的 LINE 連結（自動記住）</label>
+          <input id="salesLine" type="url" placeholder="https://line.me/ti/p/...">
+        </div>
+      </div>
+
       <div class="field">
         <label>客戶 Threads 帳號（浮水印用）</label>
         <input id="threadsId" type="text" placeholder="例如 @car_buyer99">
       </div>
 
+      <!-- SUZUKI 快速選單 -->
       <div class="field">
-        <label>車型與規格 *</label>
-        <input id="carModel" type="text" placeholder="例如 2026 Swift 1.2 藍">
+        <label>快速選擇 SUZUKI 車款（自動帶入牌價）</label>
+        <select id="carPreset">
+          <option value="">-- 請選擇車款（或下方自行輸入）--</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label>車型與規格 *（選完可自行補上車色/年式）</label>
+        <input id="carModel" type="text" placeholder="例如 2026 SWIFT 1.2 藍">
       </div>
 
       <div class="row-2">
         <div class="field">
           <label>牌價（元）</label>
-          <input id="listPrice" type="number" inputmode="numeric" placeholder="例如 730000">
+          <input id="listPrice" type="number" inputmode="numeric" placeholder="選擇車款自動帶入">
         </div>
         <div class="field">
           <label>空車折價（元）</label>
@@ -239,20 +258,61 @@
       API_URL: 'https://script.google.com/macros/s/AKfycbyzx4QwcV3YpBuXhAMeoPdwCdG7NGy9eSC0iwb2v-_PCo5Pa6KriXdkafjBj8QXyFOJ-g/exec'
     };
 
-    // 讀取上次記住的管理密碼
-    const pinInput = document.getElementById('adminPin');
-    pinInput.value = localStorage.getItem('quote_admin_pin') || '';
+    // ================= SUZUKI 車款與牌價清單（可隨時增減修改） =================
+    const CAR_PRESETS = [
+      { name: 'SWIFT 1.2 單色', price: 730000 },
+      { name: 'SWIFT 1.2 2-Tone 雙色', price: 740000 },
+      { name: 'THE NEW Jimny 單色', price: 849000 },
+      { name: 'THE NEW Jimny 2-Tone 雙色', price: 859000 },
+      { name: 'S-CROSS 2WD', price: 980000 },
+      { name: 'S-CROSS ALLGRIP 4WD', price: 1140000 },
+      { name: 'VITARA S ALLGRIP', price: 1040000 },
+      { name: 'e VITARA 2WD 純電', price: 1150000 },
+      { name: 'e VITARA ALLGRIP-e 4WD 純電', price: 1230000 },
+      { name: 'CARRY 商用貨車', price: 499000 },
+      { name: 'IGNIS 1.2', price: 695000 }
+    ];
 
-    // 牌價 - 折價 自動算出成交價
+    // 初始化車款下拉選單
+    const carPresetEl = document.getElementById('carPreset');
+    const carModelEl = document.getElementById('carModel');
     const listPriceEl = document.getElementById('listPrice');
     const discountEl = document.getElementById('discount');
     const finalPriceEl = document.getElementById('finalPrice');
 
+    CAR_PRESETS.forEach((car, index) => {
+      const opt = document.createElement('option');
+      opt.value = index;
+      opt.textContent = `${car.name}（$${car.price.toLocaleString('zh-TW')}）`;
+      carPresetEl.appendChild(opt);
+    });
+
+    carPresetEl.addEventListener('change', () => {
+      const idx = carPresetEl.value;
+      if (idx === '') return;
+      const selected = CAR_PRESETS[Number(idx)];
+      carModelEl.value = selected.name;
+      listPriceEl.value = selected.price;
+      autoCalc();
+    });
+
+    // 讀取上次記住的管理密碼與業務資訊
+    const pinInput = document.getElementById('adminPin');
+    const salesNameInput = document.getElementById('salesName');
+    const salesLineInput = document.getElementById('salesLine');
+
+    pinInput.value = localStorage.getItem('quote_admin_pin') || '';
+    salesNameInput.value = localStorage.getItem('quote_sales_name') || '';
+    salesLineInput.value = localStorage.getItem('quote_sales_line') || '';
+
+    // 牌價 - 折價 自動算出成交價
     function autoCalc() {
       const lp = Number(listPriceEl.value);
       const dc = Number(discountEl.value);
       if (lp > 0 && discountEl.value !== '') {
         finalPriceEl.value = lp - dc;
+      } else if (lp > 0 && discountEl.value === '') {
+        finalPriceEl.value = lp;
       }
     }
     listPriceEl.addEventListener('input', autoCalc);
@@ -299,19 +359,26 @@
     submitBtn.addEventListener('click', async () => {
       errorEl.textContent = '';
       const adminPin = pinInput.value.trim();
-      const carModel = document.getElementById('carModel').value.trim();
+      const salesName = salesNameInput.value.trim();
+      const salesLine = salesLineInput.value.trim();
+      const carModel = carModelEl.value.trim();
 
       if (!adminPin) { errorEl.textContent = '請輸入管理密碼'; return; }
-      if (!carModel) { errorEl.textContent = '請輸入車型與規格'; return; }
+      if (!carModel) { errorEl.textContent = '請選擇或輸入車型與規格'; return; }
 
       // 自動幫 Threads 帳號補上 @
       let threadsId = document.getElementById('threadsId').value.trim();
       if (threadsId && !threadsId.startsWith('@')) threadsId = '@' + threadsId;
 
+      // 記住業務資訊在手機端
       localStorage.setItem('quote_admin_pin', adminPin);
+      localStorage.setItem('quote_sales_name', salesName);
+      localStorage.setItem('quote_sales_line', salesLine);
 
       const payload = {
         adminPin,
+        salesName,
+        salesLine,
         threadsId,
         carModel,
         listPrice: listPriceEl.value.trim(),
@@ -327,7 +394,6 @@
       submitBtn.textContent = '寫入試算表中...';
 
       try {
-        // 使用 text/plain 避開 GAS 的 CORS 預檢限制
         const res = await fetch(CONFIG.API_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'text/plain;charset=utf-8' },
@@ -361,7 +427,7 @@
       const msg = [
         `您好！這是為您準備的專屬購車報價單：`,
         lastResult.quoteUrl,
-        `（有效期限至 ${lastResult.expireTime}，點開後長按按鈕即可顯示專案底價）`
+        `（有效期限至 ${lastResult.expireTime}，點開後長按按鈕即可顯示底價與配備）`
       ].join('\n');
       copyText(msg, this, '📋 一鍵複製 Threads 報價訊息');
     });
@@ -374,8 +440,9 @@
       copyText(`您的報價單解鎖碼是：${lastResult.unlockCode}`, this, '🔑 單獨複製解鎖碼');
     });
 
-    // 重置再開下一張
+    // 重置再開下一張（保留管理密碼、負責業務、業務 LINE 連結）
     document.getElementById('new-quote-btn').addEventListener('click', () => {
+      carPresetEl.value = '';
       ['threadsId', 'carModel', 'listPrice', 'discount', 'finalPrice', 'notes', 'unlockCode']
         .forEach(id => { document.getElementById(id).value = ''; });
       document.getElementById('result-card').classList.add('hidden');
