@@ -58,7 +58,7 @@
       outline: none;
     }
     input:focus, textarea:focus, select:focus { border-color: var(--accent); }
-    textarea { min-height: 84px; resize: vertical; font-family: inherit; }
+    textarea { min-height: 76px; resize: vertical; font-family: inherit; }
     .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
     .inline-group { display: flex; gap: 8px; }
     .inline-group input { flex: 1; }
@@ -85,12 +85,90 @@
       font-weight: 600;
       background: #fff;
       cursor: pointer;
+      user-select: none;
     }
     .chip.active {
       background: var(--primary);
       color: #fff;
       border-color: var(--primary);
     }
+
+    /* 配件快選標籤 */
+    .acc-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+    }
+    .acc-chip {
+      padding: 7px 11px;
+      border: 1.5px solid var(--border);
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 600;
+      background: #fff;
+      color: var(--text);
+      cursor: pointer;
+      user-select: none;
+      transition: all 0.12s ease;
+    }
+    .acc-chip.active {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+    }
+
+    /* 已選配件明細卡片 */
+    .acc-list {
+      margin-top: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .acc-item {
+      background: #f8fafc;
+      border: 1.5px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 10px 12px;
+    }
+    .acc-item-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    .acc-item-name {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--primary);
+    }
+    .acc-remove {
+      border: none;
+      background: none;
+      color: var(--muted);
+      font-size: 16px;
+      cursor: pointer;
+      padding: 0 4px;
+    }
+    .acc-item-controls {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 8px;
+    }
+    .acc-item-controls input,
+    .acc-item-controls select {
+      padding: 8px 10px;
+      font-size: 14px;
+      border-radius: 8px;
+    }
+    .acc-price-row {
+      margin-top: 8px;
+    }
+    .acc-price-row input {
+      padding: 8px 10px;
+      font-size: 14px;
+      border-radius: 8px;
+    }
+
     .submit-btn {
       width: 100%;
       padding: 14px;
@@ -197,14 +275,22 @@
         </div>
       </div>
 
+      <!-- 常用配件勾選區 -->
       <div class="field">
-        <label>最終成交價（元）</label>
-        <input id="finalPrice" type="number" inputmode="numeric" placeholder="會自動相減，也可手動修改">
+        <label>常用配件勾選（點擊展開填寫品牌與贈送/金額）</label>
+        <div class="acc-chips" id="acc-chips"></div>
+        <div class="acc-list" id="acc-list"></div>
       </div>
 
       <div class="field">
-        <label>配備與專案備註</label>
-        <textarea id="notes" placeholder="例如：含隔熱紙、行車記錄器、三寶、領牌費實報實銷"></textarea>
+        <label>最終成交價（元）</label>
+        <input id="finalPrice" type="number" inputmode="numeric" placeholder="牌價 - 折價 + 自費配件，可手動修改">
+        <div class="hint" id="acc-total-hint"></div>
+      </div>
+
+      <div class="field">
+        <label>其他專案備註（選填）</label>
+        <textarea id="notes" placeholder="例如：領牌費與保險實報實銷、可搭配低利率分期"></textarea>
       </div>
 
       <div class="field">
@@ -252,13 +338,12 @@
   </div>
 
   <script>
-    // ================= 必填設定區 =================
+    // ================= 設定區（已帶入你的 API 網址） =================
     const CONFIG = {
-      // 貼上你的 Google Apps Script 網頁應用程式網址（/exec 結尾）
       API_URL: 'https://script.google.com/macros/s/AKfycbyzx4QwcV3YpBuXhAMeoPdwCdG7NGy9eSC0iwb2v-_PCo5Pa6KriXdkafjBj8QXyFOJ-g/exec'
     };
 
-    // ================= SUZUKI 車款與牌價清單（可隨時增減修改） =================
+    // ================= SUZUKI 車款與牌價清單 =================
     const CAR_PRESETS = [
       { name: 'SWIFT 1.2 單色', price: 730000 },
       { name: 'SWIFT 1.2 2-Tone 雙色', price: 740000 },
@@ -273,13 +358,26 @@
       { name: 'IGNIS 1.2', price: 695000 }
     ];
 
-    // 初始化車款下拉選單
+    // ================= 常用配件清單 =================
+    const ACCESSORY_LIST = [
+      '隔熱紙', '行車記錄器', '360環景', '皮椅', '抬頭顯示',
+      '速控', '中央扶手', '晴雨窗', '避光墊', '防水托盤',
+      '後箱墊', '防水腳踏墊', '手機支架', '杯架'
+    ];
+
+    // 儲存已選配件狀態：{ name: { brand: '', type: 'gift'|'paid', price: '' } }
+    const selectedAccessories = {};
+
     const carPresetEl = document.getElementById('carPreset');
     const carModelEl = document.getElementById('carModel');
     const listPriceEl = document.getElementById('listPrice');
     const discountEl = document.getElementById('discount');
     const finalPriceEl = document.getElementById('finalPrice');
+    const accChipsEl = document.getElementById('acc-chips');
+    const accListEl = document.getElementById('acc-list');
+    const accTotalHintEl = document.getElementById('acc-total-hint');
 
+    // 初始化車款下拉選單
     CAR_PRESETS.forEach((car, index) => {
       const opt = document.createElement('option');
       opt.value = index;
@@ -296,6 +394,144 @@
       autoCalc();
     });
 
+    // 初始化配件快選標籤
+    function renderAccessoryChips() {
+      accChipsEl.innerHTML = '';
+      ACCESSORY_LIST.forEach(name => {
+        const chip = document.createElement('div');
+        chip.className = 'acc-chip' + (selectedAccessories[name] ? ' active' : '');
+        chip.textContent = (selectedAccessories[name] ? '✓ ' : '+ ') + name;
+        chip.addEventListener('click', () => toggleAccessory(name));
+        accChipsEl.appendChild(chip);
+      });
+    }
+
+    function toggleAccessory(name) {
+      if (selectedAccessories[name]) {
+        delete selectedAccessories[name];
+      } else {
+        selectedAccessories[name] = { brand: '', type: 'gift', price: '' };
+      }
+      renderAccessoryChips();
+      renderAccessoryList();
+      autoCalc();
+    }
+
+    function renderAccessoryList() {
+      accListEl.innerHTML = '';
+      Object.keys(selectedAccessories).forEach(name => {
+        const item = selectedAccessories[name];
+        const card = document.createElement('div');
+        card.className = 'acc-item';
+
+        card.innerHTML = `
+          <div class="acc-item-header">
+            <span class="acc-item-name">• ${name}</span>
+            <button type="button" class="acc-remove" title="移除">✕</button>
+          </div>
+          <div class="acc-item-controls">
+            <input type="text" class="acc-brand" placeholder="品牌/型號（選填）" value="${item.brand.replace(/"/g, '&quot;')}">
+            <select class="acc-type">
+              <option value="gift" ${item.type === 'gift' ? 'selected' : ''}>贈送</option>
+              <option value="paid" ${item.type === 'paid' ? 'selected' : ''}>自費加購</option>
+            </select>
+          </div>
+          <div class="acc-price-row ${item.type === 'paid' ? '' : 'hidden'}">
+            <input type="number" inputmode="numeric" class="acc-price" placeholder="輸入自費金額（元）" value="${item.price}">
+          </div>
+        `;
+
+        card.querySelector('.acc-remove').addEventListener('click', () => toggleAccessory(name));
+
+        card.querySelector('.acc-brand').addEventListener('input', e => {
+          selectedAccessories[name].brand = e.target.value;
+        });
+
+        const typeSelect = card.querySelector('.acc-type');
+        const priceRow = card.querySelector('.acc-price-row');
+        const priceInput = card.querySelector('.acc-price');
+
+        typeSelect.addEventListener('change', e => {
+          selectedAccessories[name].type = e.target.value;
+          if (e.target.value === 'paid') {
+            priceRow.classList.remove('hidden');
+            priceInput.focus();
+          } else {
+            priceRow.classList.add('hidden');
+            selectedAccessories[name].price = '';
+            priceInput.value = '';
+          }
+          autoCalc();
+        });
+
+        priceInput.addEventListener('input', e => {
+          selectedAccessories[name].price = e.target.value;
+          autoCalc();
+        });
+
+        accListEl.appendChild(card);
+      });
+    }
+
+    // 計算自費配件總額
+    function getPaidAccessoryTotal() {
+      let total = 0;
+      Object.values(selectedAccessories).forEach(item => {
+        if (item.type === 'paid') {
+          total += Number(item.price) || 0;
+        }
+      });
+      return total;
+    }
+
+    // 牌價 - 折價 + 自費配件總額 自動算出成交價
+    function autoCalc() {
+      const lp = Number(listPriceEl.value) || 0;
+      const dc = Number(discountEl.value) || 0;
+      const accTotal = getPaidAccessoryTotal();
+
+      if (accTotal > 0) {
+        accTotalHintEl.textContent = `已自動加上自費配件總計：NT$ ${accTotal.toLocaleString('zh-TW')}`;
+      } else {
+        accTotalHintEl.textContent = '';
+      }
+
+      if (lp > 0) {
+        finalPriceEl.value = lp - dc + accTotal;
+      }
+    }
+
+    listPriceEl.addEventListener('input', autoCalc);
+    discountEl.addEventListener('input', autoCalc);
+    renderAccessoryChips();
+
+    // 將已勾選配件與其他備註組合成整齊文字
+    function buildNotesText() {
+      const lines = [];
+      const keys = Object.keys(selectedAccessories);
+      if (keys.length > 0) {
+        lines.push('【配備明細】');
+        keys.forEach(name => {
+          const item = selectedAccessories[name];
+          const brandText = item.brand.trim() ? `（${item.brand.trim()}）` : '';
+          let costText = '贈送';
+          if (item.type === 'paid') {
+            const p = Number(item.price);
+            costText = p > 0 ? `自費 $${p.toLocaleString('zh-TW')}` : '自費';
+          }
+          lines.push(`• ${name}${brandText}：${costText}`);
+        });
+      }
+
+      const extraNotes = document.getElementById('notes').value.trim();
+      if (extraNotes) {
+        if (lines.length > 0) lines.push('');
+        lines.push('【專案備註】');
+        lines.push(extraNotes);
+      }
+      return lines.join('\n');
+    }
+
     // 讀取上次記住的管理密碼與業務資訊
     const pinInput = document.getElementById('adminPin');
     const salesNameInput = document.getElementById('salesName');
@@ -304,19 +540,6 @@
     pinInput.value = localStorage.getItem('quote_admin_pin') || '';
     salesNameInput.value = localStorage.getItem('quote_sales_name') || '';
     salesLineInput.value = localStorage.getItem('quote_sales_line') || '';
-
-    // 牌價 - 折價 自動算出成交價
-    function autoCalc() {
-      const lp = Number(listPriceEl.value);
-      const dc = Number(discountEl.value);
-      if (lp > 0 && discountEl.value !== '') {
-        finalPriceEl.value = lp - dc;
-      } else if (lp > 0 && discountEl.value === '') {
-        finalPriceEl.value = lp;
-      }
-    }
-    listPriceEl.addEventListener('input', autoCalc);
-    discountEl.addEventListener('input', autoCalc);
 
     // 有效時間按鈕切換
     let selectedHours = 24;
@@ -366,11 +589,9 @@
       if (!adminPin) { errorEl.textContent = '請輸入管理密碼'; return; }
       if (!carModel) { errorEl.textContent = '請選擇或輸入車型與規格'; return; }
 
-      // 自動幫 Threads 帳號補上 @
       let threadsId = document.getElementById('threadsId').value.trim();
       if (threadsId && !threadsId.startsWith('@')) threadsId = '@' + threadsId;
 
-      // 記住業務資訊在手機端
       localStorage.setItem('quote_admin_pin', adminPin);
       localStorage.setItem('quote_sales_name', salesName);
       localStorage.setItem('quote_sales_line', salesLine);
@@ -384,7 +605,7 @@
         listPrice: listPriceEl.value.trim(),
         discount: discountEl.value.trim(),
         finalPrice: finalPriceEl.value.trim(),
-        notes: document.getElementById('notes').value.trim(),
+        notes: buildNotesText(),
         validHours: selectedHours,
         maxViews: document.getElementById('maxViews').value.trim() || 0,
         unlockCode: document.getElementById('unlockCode').value.trim()
@@ -445,6 +666,10 @@
       carPresetEl.value = '';
       ['threadsId', 'carModel', 'listPrice', 'discount', 'finalPrice', 'notes', 'unlockCode']
         .forEach(id => { document.getElementById(id).value = ''; });
+      Object.keys(selectedAccessories).forEach(k => delete selectedAccessories[k]);
+      renderAccessoryChips();
+      renderAccessoryList();
+      accTotalHintEl.textContent = '';
       document.getElementById('result-card').classList.add('hidden');
       document.getElementById('form-card').classList.remove('hidden');
     });
