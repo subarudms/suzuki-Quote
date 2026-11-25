@@ -56,13 +56,12 @@
       body { display: none !important; }
     }
 
-    /* 滿版斜向動態浮水印 */
+    /* 滿版抗 AI 強化浮水印（壓在所有內容最上層） */
     #watermark {
       position: fixed;
       inset: 0;
       pointer-events: none;
       z-index: 9999;
-      opacity: 0.14;
       background-repeat: repeat;
     }
 
@@ -143,9 +142,24 @@
       text-align: right;
     }
 
-    /* 敏感價格與配備防窺區塊 */
+    /* 抗 AI 去背斜線底紋防窺區塊 */
     .secret-box {
-      background: #f8fafc;
+      background-color: #f8fafc;
+      background-image:
+        repeating-linear-gradient(
+          -45deg,
+          rgba(15, 23, 42, 0.045) 0px,
+          rgba(15, 23, 42, 0.045) 2px,
+          transparent 2px,
+          transparent 8px
+        ),
+        repeating-linear-gradient(
+          45deg,
+          rgba(37, 99, 235, 0.035) 0px,
+          rgba(37, 99, 235, 0.035) 1px,
+          transparent 1px,
+          transparent 11px
+        );
       border: 1px dashed #94a3b8;
       border-radius: 12px;
       padding: 16px;
@@ -171,7 +185,7 @@
     .secret-value {
       font-size: 20px;
       font-weight: 800;
-      transition: filter 0.12s ease;
+      transition: filter 0.1s ease;
     }
 
     .secret-value.discount {
@@ -184,15 +198,15 @@
     }
 
     .blurred {
-      filter: blur(10px);
-      opacity: 0.65;
+      filter: blur(11px);
+      opacity: 0.55;
     }
 
-    /* 長按看底價與配備按鈕 */
+    /* 獨立長按防窺按鈕 */
     .hold-btn {
       width: 100%;
       margin-top: 12px;
-      padding: 14px;
+      padding: 13px;
       border: none;
       border-radius: 10px;
       background: var(--primary);
@@ -209,17 +223,15 @@
       transform: scale(0.98);
     }
 
-    /* 配備與備註 */
-    .notes-box {
-      background: #f8fafc;
-      border-radius: 10px;
-      padding: 14px;
+    /* 配備與備註內容 */
+    .notes-content {
       font-size: 14px;
-      color: #334155;
+      color: #1e293b;
+      font-weight: 500;
       white-space: pre-wrap;
       word-break: break-word;
-      margin-top: 8px;
-      transition: filter 0.12s ease;
+      padding: 6px 2px;
+      transition: filter 0.1s ease;
     }
 
     /* 有效期限與提醒 */
@@ -336,7 +348,7 @@
 </head>
 <body>
 
-  <!-- 滿版動態浮水印層 -->
+  <!-- 滿版抗 AI 強化浮水印層 -->
   <div id="watermark"></div>
 
   <div class="container">
@@ -384,34 +396,38 @@
             <span class="value" id="q-list-price"></span>
           </div>
 
-          <!-- 敏感價格防窺區 -->
+          <!-- 獨立防窺區 1：專案底價 -->
           <div class="secret-box">
             <div class="secret-header">
-              <span>🔐 專案機密報價（防截圖保護）</span>
-              <span id="reveal-status">已隱藏</span>
+              <span>🔐 專案機密報價（獨立防窺）</span>
+              <span id="price-status">已隱藏</span>
             </div>
             <div class="secret-row">
               <span class="label">空車現金折價</span>
-              <span class="secret-value discount blurred" id="q-discount"></span>
+              <span class="secret-value discount price-secret blurred" id="q-discount"></span>
             </div>
             <div class="secret-row">
               <span class="label">預估成交價</span>
-              <span class="secret-value final blurred" id="q-final-price"></span>
+              <span class="secret-value final price-secret blurred" id="q-final-price"></span>
             </div>
-            <button id="hold-btn" class="hold-btn" type="button">👆 按住不放顯示底價與配備</button>
+            <button id="hold-price-btn" class="hold-btn" type="button">👆 按住不放顯示專屬底價</button>
           </div>
 
-          <!-- 配備與備註（預設模糊，長按上方按鈕同步顯示） -->
-          <div id="notes-wrapper" class="hidden">
-            <div class="label" style="font-weight: 600; color: var(--text);">配備明細與專案備註</div>
-            <div class="notes-box blurred" id="q-notes"></div>
+          <!-- 獨立防窺區 2：配備與備註 -->
+          <div id="notes-wrapper" class="secret-box hidden">
+            <div class="secret-header">
+              <span>🎁 配備明細與專案備註（獨立防窺）</span>
+              <span id="notes-status">已隱藏</span>
+            </div>
+            <div class="notes-content notes-secret blurred" id="q-notes"></div>
+            <button id="hold-notes-btn" class="hold-btn" type="button">👆 按住不放顯示配備明細</button>
           </div>
 
           <!-- 有效期限與防外流聲明 -->
           <div class="meta-footer">
             <div id="q-expire" class="expire-alert"></div>
             <div>報價編號：<span id="q-id"></span> ｜ 查閱時間：<span id="q-time"></span></div>
-            <div>※ 本報價單含個人專屬浮水印，僅供本人參考，請勿截圖外流。</div>
+            <div>※ 本報價單採分段防窺與專屬浮水印保護，僅供本人參考，請勿截圖外流。</div>
           </div>
         </div>
       </div>
@@ -423,15 +439,13 @@
   </div>
 
   <script>
-    // ================= 必填設定區 =================
+    // ================= 設定區（已帶入你的 API 網址） =================
     const CONFIG = {
-      // 1. 貼上你的 Google Apps Script 網頁應用程式網址（/exec 結尾）
       API_URL: 'https://script.google.com/macros/s/AKfycbyzx4QwcV3YpBuXhAMeoPdwCdG7NGy9eSC0iwb2v-_PCo5Pa6KriXdkafjBj8QXyFOJ-g/exec',
 
-      // 2. 預設 LINE 連結（當業務開單未填個人 LINE 或報價失效時使用）
+      // 預設 LINE 連結（當業務開單未填個人 LINE 或報價失效時使用，請換成你的）
       LINE_URL: 'https://line.me/ti/p/ZsdcDlU_j2',
 
-      // 3. 報價單左上角標籤名稱
       BRAND_TAG: '專屬購車報價單'
     };
 
@@ -446,7 +460,6 @@
       quote: document.getElementById('view-quote')
     };
 
-    // 綁定預設 LINE 導流按鈕
     document.getElementById('cta-line-btn').href = CONFIG.LINE_URL;
     document.getElementById('error-line-btn').href = CONFIG.LINE_URL;
     document.getElementById('q-brand').textContent = CONFIG.BRAND_TAG;
@@ -470,15 +483,25 @@
       return String(val);
     }
 
-    // 產生滿版斜向 SVG 浮水印
-    function applyWatermark(threadsId, timeStr) {
+    // 產生抗 AI 強化浮水印（多角度、不規則深淺、干擾細線）
+    function applyWatermark(threadsId, timeStr, idStr) {
       const text1 = threadsId || '專屬客戶';
       const text2 = timeStr || '';
+      const text3 = `ID:${idStr || ''} 禁止外流`;
       const svg = `
-        <svg xmlns="http://www.w3.org/2000/svg" width="240" height="170">
-          <g transform="rotate(-26 120 85)" fill="#0f172a" font-family="sans-serif" font-weight="700">
-            <text x="20" y="75" font-size="15">${escapeXml(text1)}</text>
-            <text x="20" y="98" font-size="11">${escapeXml(text2)}</text>
+        <svg xmlns="http://www.w3.org/2000/svg" width="260" height="200">
+          <!-- 干擾細線 -->
+          <line x1="0" y1="40" x2="260" y2="140" stroke="rgba(15,23,42,0.06)" stroke-width="1" stroke-dasharray="4 4"/>
+          <line x1="0" y1="160" x2="260" y2="20" stroke="rgba(37,99,235,0.05)" stroke-width="1"/>
+          <!-- 主浮水印（深淺交錯） -->
+          <g transform="rotate(-24 130 100)" font-family="sans-serif" font-weight="700">
+            <text x="16" y="65" font-size="16" fill="rgba(15,23,42,0.16)">${escapeXml(text1)}</text>
+            <text x="24" y="86" font-size="11" fill="rgba(15,23,42,0.12)">${escapeXml(text2)}</text>
+          </g>
+          <!-- 次浮水印（不同角度交錯干擾 AI 演算法） -->
+          <g transform="rotate(-14 130 100)" font-family="sans-serif" font-weight="600">
+            <text x="115" y="155" font-size="12" fill="rgba(220,38,38,0.12)">${escapeXml(text3)}</text>
+            <text x="125" y="172" font-size="13" fill="rgba(15,23,42,0.11)">${escapeXml(text1)}</text>
           </g>
         </svg>
       `;
@@ -562,7 +585,7 @@
         ctaBtn.textContent = `聯繫專屬業務【${data.salesName}】加 LINE 鎖定優惠`;
       }
 
-      applyWatermark(data.threadsId, data.serverTime);
+      applyWatermark(data.threadsId, data.serverTime, data.quoteId);
       showView('quote');
     }
 
@@ -585,46 +608,75 @@
     unlockBtn.addEventListener('click', submitCode);
     codeInput.addEventListener('keydown', e => { if (e.key === 'Enter') submitCode(); });
 
-    // 長按顯示底價與配備防窺事件（相容 iOS / Android / Threads 內建瀏覽器）
-    const holdBtn = document.getElementById('hold-btn');
-    const secretEls = document.querySelectorAll('.secret-value, #q-notes');
-    const revealStatus = document.getElementById('reveal-status');
+    // ================= 互斥獨立長按防窺控制 =================
+    const holdPriceBtn = document.getElementById('hold-price-btn');
+    const holdNotesBtn = document.getElementById('hold-notes-btn');
+    const priceEls = document.querySelectorAll('.price-secret');
+    const notesEls = document.querySelectorAll('.notes-secret');
+    const priceStatus = document.getElementById('price-status');
+    const notesStatus = document.getElementById('notes-status');
 
-    function revealSecrets(e) {
+    function hideAllSecrets() {
+      priceEls.forEach(el => el.classList.add('blurred'));
+      notesEls.forEach(el => el.classList.add('blurred'));
+
+      holdPriceBtn.classList.remove('holding');
+      holdPriceBtn.textContent = '👆 按住不放顯示專屬底價';
+      priceStatus.textContent = '已隱藏';
+
+      holdNotesBtn.classList.remove('holding');
+      holdNotesBtn.textContent = '👆 按住不放顯示配備明細';
+      notesStatus.textContent = '已隱藏';
+    }
+
+    function revealPrice(e) {
       if (e) e.preventDefault();
-      secretEls.forEach(el => el.classList.remove('blurred'));
-      holdBtn.classList.add('holding');
-      holdBtn.textContent = '🔓 放開手指即自動隱藏';
-      revealStatus.textContent = '顯示中';
+      hideAllSecrets(); // 強制先鎖住配備，確保不能同時顯示
+      priceEls.forEach(el => el.classList.remove('blurred'));
+      holdPriceBtn.classList.add('holding');
+      holdPriceBtn.textContent = '🔓 放開手指即自動隱藏';
+      priceStatus.textContent = '顯示中';
     }
 
-    function hideSecrets() {
-      secretEls.forEach(el => el.classList.add('blurred'));
-      holdBtn.classList.remove('holding');
-      holdBtn.textContent = '👆 按住不放顯示底價與配備';
-      revealStatus.textContent = '已隱藏';
+    function revealNotes(e) {
+      if (e) e.preventDefault();
+      hideAllSecrets(); // 強制先鎖住底價，確保不能同時顯示
+      notesEls.forEach(el => el.classList.remove('blurred'));
+      holdNotesBtn.classList.add('holding');
+      holdNotesBtn.textContent = '🔓 放開手指即自動隱藏';
+      notesStatus.textContent = '顯示中';
     }
 
-    holdBtn.addEventListener('touchstart', revealSecrets, { passive: false });
-    holdBtn.addEventListener('touchend', hideSecrets);
-    holdBtn.addEventListener('touchcancel', hideSecrets);
-    holdBtn.addEventListener('mousedown', revealSecrets);
-    window.addEventListener('mouseup', hideSecrets);
-    holdBtn.addEventListener('mouseleave', hideSecrets);
-    holdBtn.addEventListener('contextmenu', e => e.preventDefault());
+    // 綁定價格按鈕事件
+    holdPriceBtn.addEventListener('touchstart', revealPrice, { passive: false });
+    holdPriceBtn.addEventListener('touchend', hideAllSecrets);
+    holdPriceBtn.addEventListener('touchcancel', hideAllSecrets);
+    holdPriceBtn.addEventListener('mousedown', revealPrice);
+    holdPriceBtn.addEventListener('mouseleave', hideAllSecrets);
+    holdPriceBtn.addEventListener('contextmenu', e => e.preventDefault());
 
-    // 基礎前端防窺：禁止右鍵、切頁自動模糊
+    // 綁定配備按鈕事件
+    holdNotesBtn.addEventListener('touchstart', revealNotes, { passive: false });
+    holdNotesBtn.addEventListener('touchend', hideAllSecrets);
+    holdNotesBtn.addEventListener('touchcancel', hideAllSecrets);
+    holdNotesBtn.addEventListener('mousedown', revealNotes);
+    holdNotesBtn.addEventListener('mouseleave', hideAllSecrets);
+    holdNotesBtn.addEventListener('contextmenu', e => e.preventDefault());
+
+    window.addEventListener('mouseup', hideAllSecrets);
+
+    // 基礎前端防窺：禁止右鍵、切頁自動模糊並隱藏所有機密
     document.addEventListener('contextmenu', e => e.preventDefault());
     document.addEventListener('visibilitychange', () => {
       if (document.hidden) {
-        hideSecrets();
+        hideAllSecrets();
         document.body.classList.add('privacy-blur');
       } else {
         document.body.classList.remove('privacy-blur');
       }
     });
     window.addEventListener('blur', () => {
-      hideSecrets();
+      hideAllSecrets();
       document.body.classList.add('privacy-blur');
     });
     window.addEventListener('focus', () => {
