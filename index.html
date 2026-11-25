@@ -143,7 +143,7 @@
       text-align: right;
     }
 
-    /* 敏感價格防窺區塊 */
+    /* 敏感價格與配備防窺區塊 */
     .secret-box {
       background: #f8fafc;
       border: 1px dashed #94a3b8;
@@ -188,7 +188,7 @@
       opacity: 0.65;
     }
 
-    /* 長按看底價按鈕 */
+    /* 長按看底價與配備按鈕 */
     .hold-btn {
       width: 100%;
       margin-top: 12px;
@@ -219,6 +219,7 @@
       white-space: pre-wrap;
       word-break: break-word;
       margin-top: 8px;
+      transition: filter 0.12s ease;
     }
 
     /* 有效期限與提醒 */
@@ -397,10 +398,10 @@
               <span class="label">預估成交價</span>
               <span class="secret-value final blurred" id="q-final-price"></span>
             </div>
-            <button id="hold-btn" class="hold-btn" type="button">👆 按住不放顯示專屬底價</button>
+            <button id="hold-btn" class="hold-btn" type="button">👆 按住不放顯示底價與配備</button>
           </div>
 
-          <!-- 配備與備註 -->
+          <!-- 配備與備註（預設模糊，長按上方按鈕同步顯示） -->
           <div id="notes-wrapper" class="hidden">
             <div class="label" style="font-weight: 600; color: var(--text);">配備明細與專案備註</div>
             <div class="notes-box blurred" id="q-notes"></div>
@@ -427,10 +428,10 @@
       // 1. 貼上你的 Google Apps Script 網頁應用程式網址（/exec 結尾）
       API_URL: 'https://script.google.com/macros/s/AKfycbyzx4QwcV3YpBuXhAMeoPdwCdG7NGy9eSC0iwb2v-_PCo5Pa6KriXdkafjBj8QXyFOJ-g/exec',
 
-      // 2. 貼上你的 LINE 好友連結（或 LINE 官方帳號連結）
-      LINE_URL: 'https://line.me/ti/p/dpeN20Ohl9',
+      // 2. 預設 LINE 連結（當業務開單未填個人 LINE 或報價失效時使用）
+      LINE_URL: 'https://line.me/ti/p/ZsdcDlU_j2',
 
-      // 3. 報價單左上角標籤名稱（可改成你的品牌或稱呼）
+      // 3. 報價單左上角標籤名稱
       BRAND_TAG: '專屬購車報價單'
     };
 
@@ -445,7 +446,7 @@
       quote: document.getElementById('view-quote')
     };
 
-    // 綁定 LINE 導流按鈕
+    // 綁定預設 LINE 導流按鈕
     document.getElementById('cta-line-btn').href = CONFIG.LINE_URL;
     document.getElementById('error-line-btn').href = CONFIG.LINE_URL;
     document.getElementById('q-brand').textContent = CONFIG.BRAND_TAG;
@@ -552,6 +553,15 @@
         document.getElementById('notes-wrapper').classList.remove('hidden');
       }
 
+      // 若報價單有指定負責業務，自動替換按鈕連結與文字
+      const ctaBtn = document.getElementById('cta-line-btn');
+      if (data.salesLine) {
+        ctaBtn.href = data.salesLine;
+      }
+      if (data.salesName) {
+        ctaBtn.textContent = `聯繫專屬業務【${data.salesName}】加 LINE 鎖定優惠`;
+      }
+
       applyWatermark(data.threadsId, data.serverTime);
       showView('quote');
     }
@@ -575,7 +585,7 @@
     unlockBtn.addEventListener('click', submitCode);
     codeInput.addEventListener('keydown', e => { if (e.key === 'Enter') submitCode(); });
 
-    // 長按顯示底價防窺事件（相容 iOS / Android / Threads 內建瀏覽器）
+    // 長按顯示底價與配備防窺事件（相容 iOS / Android / Threads 內建瀏覽器）
     const holdBtn = document.getElementById('hold-btn');
     const secretEls = document.querySelectorAll('.secret-value, #q-notes');
     const revealStatus = document.getElementById('reveal-status');
